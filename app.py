@@ -229,7 +229,7 @@ st.markdown("""
 <div class="hub-header">
     <div>
         <div class="hub-title">🛰️ OSINT Intelligence Hub</div>
-        <div class="hub-subtitle">منصة تحليل استخباراتي جيوسياسي — Llama 3.3-70B × مراكز أبحاث الحروب والصراعات</div>
+        <div class="hub-subtitle">منصة تحليل استخباراتي جيوسياسي — Llama 3.3-70B × قنوات وصحف ومراكز قرار عالمية</div>
     </div>
     <div class="hub-badge">🔴 رصد ومتابعة حية</div>
 </div>
@@ -380,10 +380,11 @@ if data:
         signal_class = f"sig-{signal}"
         badge_threat_class = f"badge-threat-{threat}"
 
+        # تم تحديث السطر لقراءة العنوان المعرب arabic_title القادم من الـ AI
         st.markdown(f"""
         <div class="intel-card {threat}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.8rem;">
-                <div class="card-title" style="max-width:75%; font-size:1.15rem; color:#1a202c;">{report['title']}</div>
+                <div class="card-title" style="max-width:75%; font-size:1.15rem; color:#1a202c; font-weight:700;">{report.get('arabic_title', report['title'])}</div>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <span class="signal-badge {signal_class}">{signal}</span>
                     <span class="signal-badge {badge_threat_class}">{threat}</span>
