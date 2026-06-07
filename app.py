@@ -257,20 +257,22 @@ with col_btn:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Fetch ─────────────────────────────────────────────────────────────────────
+# ── Fetch (النسخة الجذرية المطورة) ──────────────────────────────────────────────
 if fetch:
-    with st.spinner("🌐 جاري جلب الأخبار من 20 مصدر عالمي..."):
+    with st.spinner("🌍 جاري جلب الأخبار من المصادر الدولية وسحق البيانات..."):
+        # جلب الأخبار (اضبط العدد ليكون 2 أو 3 لكل مصدر لضمان سرعة معالجة الطلب الموحد)
         raw = get_intel_reports(limit_per_source=limit)
-    results = []
-    bar = st.progress(0, text="🤖 تحليل الأخبار بالذكاء الاصطناعي...")
-    for i, art in enumerate(raw):
-        analysis = analyze_article_intelligence(
-            art["title"], art["full_text"], art.get("source_name", "")
-        )
-        results.append({**art, **analysis})
-        bar.progress((i + 1) / len(raw), text=f"🤖 تحليل {i+1} من {len(raw)}...")
-    st.session_state.intel_data = results
-    st.session_state.last_updated = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
-    st.rerun()
+        
+    if raw:
+        with st.spinner("🧠 رادار Llama 3.1 يحلل كامل النشرة بطلقة واحدة..."):
+            # إرسال المصفوفة كاملة في اتصال واحد فقط لـ Groq
+            results = analyze_all_articles_at_once(raw)
+            
+        st.session_state.intel_data = results
+        st.session_state.last_updated = datetime.datetime.now().strftime("%Y-%m-%d %I:%M %p")
+        st.rerun()
+    else:
+        st.warning("⚠️ فشل جلب أي أخبار من المصادر حالياً، تأكد من اتصال الإنترنت بالسيرفر.")
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 data = st.session_state.intel_data
