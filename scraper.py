@@ -1,12 +1,11 @@
 import feedparser
-from newspaper import Article
 import requests
+import html
 
-def get_intel_reports(limit_per_source=3):
+def get_intel_reports(limit_per_source=2):
     """
-    مستودع جلب الأخبار المطور والمقاوم للحظر السحابي
+    محرك جلب خفيف وسريع جداً، يعتمد على الـ RSS مباشرة لتفادي التعليق والحظر
     """
-    # قائمة مصادر مستقرة جداً وتدعم السحاب (مزيج دولي وإقليمي)
     sources = {
         "Al Jazeera English": "https://www.aljazeera.com/xml/rss/all.xml",
         "BBC International": "http://feeds.bbci.co.uk/news/world/rss.xml",
@@ -16,19 +15,17 @@ def get_intel_reports(limit_per_source=3):
     
     articles_pool = []
     
-    # إعداد الـ Headers لخدعة الحماية وإظهار الطلب كأنه متصفح عادي
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
     for name, url in sources.items():
         try:
-            # جلب الرابط باستخدام requests أولاً لتفادي الحظر
-            response = requests.get(url, headers=headers, timeout=10)
+            # جلب سريع جداً للنص
+            response = requests.get(url, headers=headers, timeout=5)
             if response.status_code != 200:
                 continue
                 
-            # قراءة الـ RSS feed من النص المجلوب
             feed = feedparser.parse(response.text)
             
             count = 0
@@ -36,32 +33,30 @@ def get_intel_reports(limit_per_source=3):
                 if count >= limit_per_source:
                     break
                     
-                title = entry.get("title", "")
-                link = entry.get("link", "")
+                title = entry.get("title", "").strip()
+                link = entry.get("link", "").strip()
+                # نأخذ الملخص المتاح مباشرة في الـ RSS وننظفه من أي وسم HTML
+                summary = entry.get("summary", "")
+                if "<" in summary:
+                    # تنظيف سريع لإزالة أي كود HTML مكسور قد يخرب الـ JSON
+                    summary = re.sub(r'<[^>]+>', '', summary)
                 
                 if not title or not link:
                     continue
-                    
-                # كشط النص الكامل للمقال
-                try:
-                    art = Article(link)
-                    art.download()
-                    art.parse()
-                    full_text = art.text if art.text else title
-                except:
-                    # إذا فشل كشط النص الكامل بسبب حماية الموقع، نأخذ الملخص المتاح في الـ RSS
-                    full_text = entry.get("summary", title)
+                
+                # ندمج العنوان والملخص المتاح ليكون هو النص الممرر للـ AI
+                full_text = f"Title: {title}. Summary: {summary}"
                 
                 articles_pool.append({
                     "title": title,
                     "link": link,
                     "source_name": name,
-                    "full_text": full_text[:1500] # نأخذ أول 1500 حرف فقط لتوفير الـ Tokens
+                    "full_text": full_text[:1000] # تحديد الحجم تماماً لضمان السرعة القصوى
                 })
                 count += 1
                 
         except Exception as e:
-            print(f"خطأ في جلب مصدر {name}: {e}")
+            print(f"خطأ في مصدر {name}: {e}")
             continue
             
     return articles_pool
