@@ -3,11 +3,13 @@ from scraper import get_intel_reports
 from analyzer import analyze_article_intelligence
 import datetime
 import os
+import pandas as pd
+import plotly.express as px
 
 # ── إعداد المفتاح ──────────────────────────────────────────────────────────
 try:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
-except:
+except Exception:
     os.environ["GROQ_API_KEY"] = "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"
 
 # ── إعداد الصفحة ────────────────────────────────────────────────────────────
@@ -26,18 +28,13 @@ html, body, [class*="css"] {
     font-family: 'Tajawal', 'Inter', sans-serif;
     direction: rtl;
 }
+.stApp { background: #f0f4f8; color: #1a202c; }
 
-.stApp {
-    background: #f0f4f8;
-    color: #1a202c;
-}
-
-/* Header */
 .hub-header {
     background: linear-gradient(135deg, #1a1f2e 0%, #16213e 50%, #0f3460 100%);
     border-radius: 20px;
     padding: 2rem 2.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -45,101 +42,98 @@ html, body, [class*="css"] {
     gap: 1rem;
     box-shadow: 0 10px 40px rgba(15,52,96,0.3);
 }
-
-.hub-title {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0;
-    letter-spacing: -0.5px;
-}
-
-.hub-subtitle {
-    color: #94a3b8;
-    font-size: 0.85rem;
-    margin: 0.3rem 0 0;
-}
-
+.hub-title    { font-size:1.8rem; font-weight:800; color:#fff; margin:0; letter-spacing:-0.5px; }
+.hub-subtitle { color:#94a3b8; font-size:0.85rem; margin:0.3rem 0 0; }
 .hub-badge {
-    background: rgba(99,179,237,0.15);
-    border: 1px solid rgba(99,179,237,0.3);
-    color: #63b3ed;
-    padding: 0.4rem 1rem;
-    border-radius: 50px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    background:rgba(99,179,237,0.15);
+    border:1px solid rgba(99,179,237,0.3);
+    color:#63b3ed;
+    padding:0.4rem 1rem;
+    border-radius:50px;
+    font-size:0.78rem;
+    font-weight:600;
 }
 
-/* Controls card */
 .controls-card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
+    background:#fff;
+    border-radius:16px;
+    padding:1.5rem 2rem;
+    margin-bottom:1.5rem;
+    box-shadow:0 2px 20px rgba(0,0,0,0.06);
+    border:1px solid #e2e8f0;
 }
 
-/* Stat cards */
 .stat-card {
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 1.2rem 1rem;
-    text-align: center;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    border-top: 4px solid var(--accent);
-    transition: transform 0.2s;
+    background:#fff;
+    border-radius:14px;
+    padding:1.2rem 1rem;
+    text-align:center;
+    box-shadow:0 2px 12px rgba(0,0,0,0.06);
+    border:1px solid #e2e8f0;
+    border-top:4px solid var(--accent);
+    transition:transform 0.2s;
 }
-.stat-card:hover { transform: translateY(-2px); }
+.stat-card:hover { transform:translateY(-2px); }
 .stat-num {
-    font-size: 2.2rem;
-    font-weight: 800;
-    color: var(--accent);
-    line-height: 1;
-    font-family: 'Inter', sans-serif;
+    font-size:2.2rem;
+    font-weight:800;
+    color:var(--accent);
+    line-height:1;
+    font-family:'Inter',sans-serif;
 }
 .stat-label {
-    font-size: 0.75rem;
-    color: #718096;
-    font-weight: 600;
-    margin-top: 0.3rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size:0.72rem;
+    color:#718096;
+    font-weight:600;
+    margin-top:0.3rem;
+    text-transform:uppercase;
+    letter-spacing:1px;
 }
 
-/* Intel cards */
+.viz-card {
+    background:#fff;
+    border-radius:16px;
+    padding:1.2rem 1.5rem;
+    box-shadow:0 2px 16px rgba(0,0,0,0.06);
+    border:1px solid #e2e8f0;
+    margin-bottom:1.5rem;
+}
+.viz-title {
+    font-size:0.8rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:#718096;
+    margin-bottom:0.5rem;
+    font-family:'Inter',sans-serif;
+}
+
 .intel-card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-    border: 1px solid #e2e8f0;
-    border-right: 5px solid var(--card-accent, #cbd5e0);
-    transition: box-shadow 0.2s, transform 0.2s;
+    background:#fff;
+    border-radius:16px;
+    padding:1.5rem;
+    margin-bottom:1rem;
+    box-shadow:0 2px 16px rgba(0,0,0,0.06);
+    border:1px solid #e2e8f0;
+    border-right:5px solid var(--card-accent,#cbd5e0);
+    transition:box-shadow 0.2s, transform 0.2s;
 }
-.intel-card:hover {
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-    transform: translateY(-1px);
-}
-.intel-card.critical { --card-accent: #fc5c65; }
-.intel-card.high     { --card-accent: #f7b731; }
-.intel-card.medium   { --card-accent: #4078f2; }
-.intel-card.low      { --card-accent: #26de81; }
+.intel-card:hover { box-shadow:0 8px 30px rgba(0,0,0,0.1); transform:translateY(-1px); }
+.intel-card.critical { --card-accent:#fc5c65; }
+.intel-card.high     { --card-accent:#f7b731; }
+.intel-card.medium   { --card-accent:#4078f2; }
+.intel-card.low      { --card-accent:#26de81; }
 
-/* Signal badges */
 .signal-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    font-family: 'Inter', sans-serif;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 12px;
+    border-radius:50px;
+    font-size:0.7rem;
+    font-weight:700;
+    letter-spacing:0.8px;
+    font-family:'Inter',sans-serif;
 }
 .sig-CRISIS     { background:#fff0f0; color:#e53e3e; border:1.5px solid #fc8181; }
 .sig-ESCALATING { background:#fffbeb; color:#d69e2e; border:1.5px solid #f6e05e; }
@@ -147,121 +141,81 @@ html, body, [class*="css"] {
 .sig-STABLE     { background:#f0fff4; color:#276749; border:1.5px solid #9ae6b4; }
 .sig-OPPORTUNITY{ background:#faf5ff; color:#6b46c1; border:1.5px solid #d6bcfa; }
 
-/* Threat colors */
 .threat-Critical { color:#e53e3e; font-weight:700; }
 .threat-High     { color:#d69e2e; font-weight:700; }
 .threat-Medium   { color:#2b6cb0; font-weight:600; }
 .threat-Low      { color:#276749; font-weight:600; }
 
-/* Section labels */
 .field-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #a0aec0;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-    font-family: 'Inter', sans-serif;
+    font-size:0.68rem;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:#a0aec0;
+    font-weight:700;
+    margin-bottom:0.25rem;
+    font-family:'Inter',sans-serif;
 }
-
-.field-value { font-size: 0.95rem; color: #2d3748; line-height: 1.6; }
-.field-value.orange { color: #c05621; }
-.field-value.blue   { color: #2c5282; }
-
-.card-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #1a202c;
-    line-height: 1.4;
-}
-
-.card-meta span {
-    font-size: 0.75rem;
-    color: #718096;
-    font-weight: 500;
-}
+.field-value        { font-size:0.93rem; color:#2d3748; line-height:1.6; }
+.field-value.orange { color:#c05621; }
+.field-value.blue   { color:#2c5282; }
+.card-title         { font-size:1.05rem; font-weight:700; color:#1a202c; line-height:1.4; }
 
 .card-footer {
-    border-top: 1px solid #f0f4f8;
-    padding-top: 0.8rem;
-    margin-top: 0.8rem;
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    border-top:1px solid #f0f4f8;
+    padding-top:0.8rem;
+    margin-top:0.8rem;
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:0.5rem;
 }
+.source-link { color:#4078f2; font-size:0.8rem; text-decoration:none; font-weight:600; }
+.section-divider { height:1px; background:linear-gradient(90deg,#e2e8f0,transparent); margin:0.8rem 0; }
 
-.source-link {
-    color: #4078f2;
-    font-size: 0.8rem;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-/* Divider */
-.section-divider {
-    height: 1px;
-    background: linear-gradient(90deg, #e2e8f0, transparent);
-    margin: 1rem 0;
-}
-
-/* Awaiting */
 .awaiting-box {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 5rem 2rem;
-    text-align: center;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-    border: 2px dashed #e2e8f0;
+    background:#fff;
+    border-radius:20px;
+    padding:5rem 2rem;
+    text-align:center;
+    box-shadow:0 2px 20px rgba(0,0,0,0.06);
+    border:2px dashed #e2e8f0;
 }
 
-/* Hide streamlit default elements */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
+#MainMenu {visibility:hidden;} footer {visibility:hidden;} header {visibility:hidden;}
 
-/* Streamlit button override */
 .stButton > button {
-    background: linear-gradient(135deg, #1a1f2e, #0f3460) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-weight: 700 !important;
-    font-family: 'Tajawal', sans-serif !important;
-    font-size: 0.95rem !important;
-    padding: 0.6rem 1.5rem !important;
-    transition: opacity 0.2s !important;
+    background:linear-gradient(135deg,#1a1f2e,#0f3460) !important;
+    color:white !important;
+    border:none !important;
+    border-radius:10px !important;
+    font-weight:700 !important;
+    font-family:'Tajawal',sans-serif !important;
+    font-size:0.95rem !important;
+    padding:0.6rem 1.5rem !important;
 }
-.stButton > button:hover { opacity: 0.85 !important; }
+.stButton > button:hover { opacity:0.85 !important; }
 
-/* Tabs */
 .stTabs [data-baseweb="tab-list"] {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 4px;
-    border: 1px solid #e2e8f0;
-    gap: 4px;
+    background:#fff;
+    border-radius:12px;
+    padding:4px;
+    border:1px solid #e2e8f0;
+    gap:4px;
 }
 .stTabs [data-baseweb="tab"] {
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    font-family: 'Tajawal', sans-serif !important;
-}
-
-/* Multiselect */
-.stMultiSelect [data-baseweb="tag"] {
-    background: #ebf8ff !important;
-    color: #2b6cb0 !important;
+    border-radius:8px !important;
+    font-weight:600 !important;
+    font-family:'Tajawal',sans-serif !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session State ────────────────────────────────────────────────────────────
+# ── Session State ─────────────────────────────────────────────────────────────
 for key, default in [("intel_data", []), ("last_updated", "لم يتم الجلب بعد")]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ── Header ───────────────────────────────────────────────────────────────────
+# ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hub-header">
     <div>
@@ -272,31 +226,35 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Controls ─────────────────────────────────────────────────────────────────
-with st.container():
-    st.markdown('<div class="controls-card">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        filter_signal = st.multiselect(
-            "🔍 Intel Signal",
-            ["CRISIS", "ESCALATING", "WATCH", "STABLE", "OPPORTUNITY"],
-            default=["CRISIS", "ESCALATING", "WATCH", "STABLE", "OPPORTUNITY"]
-        )
-    with col2:
-        filter_threat = st.multiselect(
-            "⚠️ مستوى الخطورة",
-            ["Critical", "High", "Medium", "Low"],
-            default=["Critical", "High", "Medium", "Low"]
-        )
-    with col3:
-        limit = st.slider("📡 أخبار / مصدر", 1, 8, 3)
+# ── Controls ──────────────────────────────────────────────────────────────────
+st.markdown('<div class="controls-card">', unsafe_allow_html=True)
+col1, col2, col3 = st.columns([2, 2, 1])
+with col1:
+    filter_signal = st.multiselect(
+        "🔍 Intel Signal",
+        ["CRISIS", "ESCALATING", "WATCH", "STABLE", "OPPORTUNITY"],
+        default=["CRISIS", "ESCALATING", "WATCH", "STABLE", "OPPORTUNITY"]
+    )
+with col2:
+    filter_threat = st.multiselect(
+        "⚠️ مستوى الخطورة",
+        ["Critical", "High", "Medium", "Low"],
+        default=["Critical", "High", "Medium", "Low"]
+    )
+with col3:
+    limit = st.slider("📡 أخبار / مصدر", 1, 8, 3)
 
-    col_info, col_btn = st.columns([3, 1])
-    with col_info:
-        st.markdown(f"<p style='color:#718096; font-size:0.83rem; margin:0.5rem 0 0;'>⏱️ آخر تحديث: <b>{st.session_state.last_updated}</b> &nbsp;|&nbsp; 📊 متوقع: ~{limit * 20} خبر من 20 مصدر</p>", unsafe_allow_html=True)
-    with col_btn:
-        fetch = st.button("🔄 جلب وتحليل الأخبار", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+col_info, col_btn = st.columns([3, 1])
+with col_info:
+    st.markdown(
+        f"<p style='color:#718096;font-size:0.83rem;margin:0.5rem 0 0;'>"
+        f"⏱️ آخر تحديث: <b>{st.session_state.last_updated}</b> &nbsp;|&nbsp; "
+        f"📊 متوقع: ~{limit * 20} خبر من 20 مصدر</p>",
+        unsafe_allow_html=True
+    )
+with col_btn:
+    fetch = st.button("🔄 جلب وتحليل الأخبار", use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Fetch ─────────────────────────────────────────────────────────────────────
 if fetch:
@@ -305,7 +263,9 @@ if fetch:
     results = []
     bar = st.progress(0, text="🤖 تحليل الأخبار بالذكاء الاصطناعي...")
     for i, art in enumerate(raw):
-        analysis = analyze_article_intelligence(art["title"], art["full_text"])
+        analysis = analyze_article_intelligence(
+            art["title"], art["full_text"], art.get("source_name", "")
+        )
         results.append({**art, **analysis})
         bar.progress((i + 1) / len(raw), text=f"🤖 تحليل {i+1} من {len(raw)}...")
     st.session_state.intel_data = results
@@ -316,19 +276,35 @@ if fetch:
 data = st.session_state.intel_data
 
 if data:
+    # ── فصل الأخبار المفلترة عن المحللة ─────────────────────────────────────
+    analyzed   = [r for r in data if not r.get("filtered", False)]
+    total_in   = len(data)
+    total_filt = len(data) - len(analyzed)
+
     filtered = [
-        r for r in data
+        r for r in analyzed
         if r.get("intel_signal", "WATCH") in filter_signal
         and r.get("threat_level", "Medium") in filter_threat
     ]
 
-    # Stats
+    # ── Triage Info Bar ───────────────────────────────────────────────────────
+    st.markdown(
+        f"<div style='background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;"
+        f"padding:0.6rem 1.2rem;margin-bottom:1rem;font-size:0.83rem;color:#276749;'>"
+        f"🤖 <b>نظام الفلترة الذكية:</b> تم جلب <b>{total_in}</b> خبر — "
+        f"تم تصفية <b>{total_filt}</b> خبر غير مهم — "
+        f"تم تحليل <b>{len(analyzed)}</b> خبر بعمق"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    # ── Stat Cards ────────────────────────────────────────────────────────────
     stats = [
-        ("التقارير الكلية",  len(filtered),                                                            "#4078f2"),
-        ("🔴 CRISIS",        sum(1 for r in filtered if r.get("intel_signal") == "CRISIS"),             "#e53e3e"),
-        ("🟡 ESCALATING",    sum(1 for r in filtered if r.get("intel_signal") == "ESCALATING"),         "#d69e2e"),
-        ("خطورة عالية",     sum(1 for r in filtered if r.get("threat_level") in ["High","Critical"]),   "#d69e2e"),
-        ("خطورة حرجة",     sum(1 for r in filtered if r.get("threat_level") == "Critical"),             "#e53e3e"),
+        ("التقارير المحللة", len(filtered),                                                              "#4078f2"),
+        ("🔴 CRISIS",        sum(1 for r in filtered if r.get("intel_signal") == "CRISIS"),              "#e53e3e"),
+        ("🟡 ESCALATING",    sum(1 for r in filtered if r.get("intel_signal") == "ESCALATING"),          "#d69e2e"),
+        ("خطورة عالية",     sum(1 for r in filtered if r.get("threat_level") in ["High","Critical"]),    "#d69e2e"),
+        ("خطورة حرجة",     sum(1 for r in filtered if r.get("threat_level") == "Critical"),              "#e53e3e"),
     ]
     cols = st.columns(5)
     for col, (label, val, color) in zip(cols, stats):
@@ -340,7 +316,116 @@ if data:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Render function
+    # ── Visualization Hub ─────────────────────────────────────────────────────
+    st.markdown('<div class="viz-card">', unsafe_allow_html=True)
+    st.markdown('<div class="viz-title">📊 Visualization Hub — توزيع التهديدات وخريطة الأزمات</div>', unsafe_allow_html=True)
+
+    vcol1, vcol2 = st.columns([1, 1])
+
+    # Chart 1: Threat Level Donut
+    with vcol1:
+        threat_counts = {}
+        for r in filtered:
+            t = r.get("threat_level", "Low")
+            threat_counts[t] = threat_counts.get(t, 0) + 1
+
+        if threat_counts:
+            df_threat = pd.DataFrame(
+                list(threat_counts.items()),
+                columns=["Threat Level", "Count"]
+            )
+            color_map = {
+                "Critical": "#e53e3e",
+                "High":     "#f7b731",
+                "Medium":   "#4078f2",
+                "Low":      "#26de81"
+            }
+            fig_pie = px.pie(
+                df_threat,
+                names="Threat Level",
+                values="Count",
+                hole=0.55,
+                color="Threat Level",
+                color_discrete_map=color_map,
+                title="توزيع مستويات الخطورة"
+            )
+            fig_pie.update_traces(
+                textposition="outside",
+                textinfo="percent+label",
+                hovertemplate="<b>%{label}</b><br>العدد: %{value}<br>النسبة: %{percent}<extra></extra>"
+            )
+            fig_pie.update_layout(
+                height=300,
+                margin=dict(t=40, b=10, l=10, r=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="Tajawal, Inter, sans-serif", size=13),
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                title_font=dict(size=14, color="#2d3748")
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+    # Chart 2: Geopolitical Heatmap
+    with vcol2:
+        threat_weight = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
+        country_scores: dict = {}
+        for r in filtered:
+            weight = threat_weight.get(r.get("threat_level", "Low"), 1)
+            for country in r.get("countries_involved", []):
+                country = country.strip()
+                if country and country.lower() not in ("unknown", "global", ""):
+                    country_scores[country] = country_scores.get(country, 0) + weight
+
+        if country_scores:
+            df_map = pd.DataFrame(
+                list(country_scores.items()),
+                columns=["Country", "Crisis Score"]
+            )
+            fig_map = px.choropleth(
+                df_map,
+                locations="Country",
+                locationmode="country names",
+                color="Crisis Score",
+                color_continuous_scale=[
+                    [0.0,  "#e8f5e9"],
+                    [0.25, "#80deea"],
+                    [0.5,  "#f7b731"],
+                    [0.75, "#e53e3e"],
+                    [1.0,  "#7b0000"]
+                ],
+                title="خريطة الأزمات الجيوسياسية",
+                labels={"Crisis Score": "مؤشر الأزمة"}
+            )
+            fig_map.update_layout(
+                height=300,
+                margin=dict(t=40, b=10, l=0, r=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                geo=dict(
+                    showframe=False,
+                    showcoastlines=True,
+                    coastlinecolor="#cbd5e0",
+                    showland=True,
+                    landcolor="#f7fafc",
+                    showocean=True,
+                    oceancolor="#ebf8ff",
+                    projection_type="natural earth"
+                ),
+                coloraxis_colorbar=dict(
+                    title="مؤشر",
+                    thickness=12,
+                    len=0.7
+                ),
+                font=dict(family="Tajawal, Inter, sans-serif", size=12),
+                title_font=dict(size=14, color="#2d3748")
+            )
+            st.plotly_chart(fig_map, use_container_width=True)
+        else:
+            st.info("لا توجد بيانات جغرافية كافية لعرض الخريطة.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── Report Renderer ───────────────────────────────────────────────────────
     def render_report(report):
         threat = report.get("threat_level", "Low")
         signal = report.get("intel_signal", "WATCH")
@@ -349,17 +434,17 @@ if data:
 
         st.markdown(f"""
         <div class="intel-card {threat.lower()}">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.8rem;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
                 <div class="card-title">{report.get('title','')}</div>
                 <span class="signal-badge sig-{signal}">● {signal}</span>
             </div>
-            <div class="card-meta" style="display:flex; gap:1.2rem; flex-wrap:wrap; margin-bottom:1rem;">
-                <span>📰 {report.get('source_name','')}</span>
-                <span>🗂️ {report.get('category','')}</span>
-                <span class="threat-{threat}">⚠️ {threat}</span>
+            <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:0.8rem;">
+                <span style="font-size:0.75rem;color:#718096;">📰 {report.get('source_name','')}</span>
+                <span style="font-size:0.75rem;color:#718096;">🗂️ {report.get('category','')}</span>
+                <span class="threat-{threat}" style="font-size:0.75rem;">⚠️ {threat}</span>
             </div>
             <div class="section-divider"></div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:0.8rem 0;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:0.8rem 0;">
                 <div>
                     <div class="field-label">📝 الملخص التكتيكي</div>
                     <div class="field-value">{report.get('arabic_summary','')}</div>
@@ -369,7 +454,7 @@ if data:
                     <div class="field-value orange">{report.get('real_driver','')}</div>
                 </div>
             </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:0.8rem;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.8rem;">
                 <div>
                     <div class="field-label">🔮 التوقع الاستراتيجي (30-90 يوم)</div>
                     <div class="field-value blue">{report.get('strategic_forecast','')}</div>
@@ -380,48 +465,51 @@ if data:
                 </div>
             </div>
             <div class="card-footer">
-                <span style="color:#718096; font-size:0.78rem;">🌐 {', '.join(report.get('countries_involved',[]))}</span>
-                <span style="color:#718096; font-size:0.78rem;">🕵️ {hidden_str}</span>
+                <span style="color:#718096;font-size:0.78rem;">🌐 {', '.join(report.get('countries_involved',[]))}</span>
+                <span style="color:#718096;font-size:0.78rem;">🕵️ {hidden_str}</span>
                 <a href="{report.get('link','#')}" target="_blank" class="source-link">🔗 المصدر الأصلي ↗</a>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
+    # ── Tabs ──────────────────────────────────────────────────────────────────
     tabs = st.tabs(["📋 كل التقارير", "🚨 CRISIS & ESCALATING", "🔍 بحث"])
-
-    priority = {"Critical":0,"High":1,"Medium":2,"Low":3}
+    priority = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
 
     with tabs[0]:
-        st.markdown(f"<p style='color:#718096; font-size:0.85rem;'><b>{len(filtered)}</b> تقرير — مرتب حسب الخطورة</p>", unsafe_allow_html=True)
-        for r in sorted(filtered, key=lambda x: priority.get(x.get("threat_level","Low"), 3)):
+        st.markdown(f"<p style='color:#718096;font-size:0.85rem;'><b>{len(filtered)}</b> تقرير — مرتب حسب الخطورة</p>", unsafe_allow_html=True)
+        for r in sorted(filtered, key=lambda x: priority.get(x.get("threat_level", "Low"), 3)):
             render_report(r)
 
     with tabs[1]:
-        crisis = [r for r in filtered if r.get("intel_signal") in ["CRISIS","ESCALATING"]]
-        st.markdown(f"<p style='color:#718096; font-size:0.85rem;'><b>{len(crisis)}</b> تقرير يستدعي الانتباه الفوري</p>", unsafe_allow_html=True)
+        crisis = [r for r in filtered if r.get("intel_signal") in ["CRISIS", "ESCALATING"]]
+        st.markdown(f"<p style='color:#718096;font-size:0.85rem;'><b>{len(crisis)}</b> تقرير يستدعي الانتباه الفوري</p>", unsafe_allow_html=True)
         for r in crisis:
             render_report(r)
 
     with tabs[2]:
         search_q = st.text_input("", placeholder="🔍 ابحث: إيران، الناتو، النفط، الصين...")
-        results_s = [
+        search_results = [
             r for r in filtered
-            if not search_q or search_q.lower() in r.get("title","").lower() or search_q in r.get("arabic_summary","")
+            if not search_q
+            or search_q.lower() in r.get("title", "").lower()
+            or search_q in r.get("arabic_summary", "")
         ]
-        st.markdown(f"<p style='color:#718096; font-size:0.85rem;'><b>{len(results_s)}</b> نتيجة</p>", unsafe_allow_html=True)
-        for r in results_s:
+        st.markdown(f"<p style='color:#718096;font-size:0.85rem;'><b>{len(search_results)}</b> نتيجة</p>", unsafe_allow_html=True)
+        for r in search_results:
             render_report(r)
 
 else:
     st.markdown("""
     <div class="awaiting-box">
-        <div style="font-size:4rem; margin-bottom:1rem;">🛰️</div>
-        <h2 style="color:#1a202c; font-weight:800; margin-bottom:0.5rem;">في انتظار البيانات</h2>
-        <p style="color:#718096; font-size:1rem;">اضغط على <b>جلب وتحليل الأخبار</b> أعلاه لبدء الرصد الاستخباراتي</p>
-        <div style="margin-top:1.5rem; display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
-            <span style="background:#ebf8ff; color:#2b6cb0; padding:6px 16px; border-radius:50px; font-size:0.8rem; font-weight:600;">20+ مصدر دولي</span>
-            <span style="background:#f0fff4; color:#276749; padding:6px 16px; border-radius:50px; font-size:0.8rem; font-weight:600;">Llama 3.3-70B</span>
-            <span style="background:#faf5ff; color:#6b46c1; padding:6px 16px; border-radius:50px; font-size:0.8rem; font-weight:600;">تحليل جيوسياسي عميق</span>
+        <div style="font-size:4rem;margin-bottom:1rem;">🛰️</div>
+        <h2 style="color:#1a202c;font-weight:800;margin-bottom:0.5rem;">في انتظار البيانات</h2>
+        <p style="color:#718096;font-size:1rem;">اضغط على <b>جلب وتحليل الأخبار</b> أعلاه لبدء الرصد الاستخباراتي</p>
+        <div style="margin-top:1.5rem;display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;">
+            <span style="background:#ebf8ff;color:#2b6cb0;padding:6px 16px;border-radius:50px;font-size:0.8rem;font-weight:600;">20+ مصدر دولي</span>
+            <span style="background:#f0fff4;color:#276749;padding:6px 16px;border-radius:50px;font-size:0.8rem;font-weight:600;">Llama 3.3-70B</span>
+            <span style="background:#faf5ff;color:#6b46c1;padding:6px 16px;border-radius:50px;font-size:0.8rem;font-weight:600;">تحليل جيوسياسي عميق</span>
+            <span style="background:#fff0f0;color:#e53e3e;padding:6px 16px;border-radius:50px;font-size:0.8rem;font-weight:600;">🔔 Telegram Alerts</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
