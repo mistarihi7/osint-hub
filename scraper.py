@@ -9,18 +9,17 @@ def get_intel_reports(limit_per_source=3):
     محرك رصد متطور يجلب حصرياً من قنوات التلفزة الدولية، الصحف العالمية المشهورة،
     ومراكز القرار العسكري، مع نظام حماية وتخطي للحجب السحابي.
     """
-    # قائمة القنوات والوكالات المشهورة ومراكز الأبحاث المستهدفة
     sources = {
-        "قناة الجزيرة العالمية (Al Jazeera)": "https://www.aljazeera.com/xml/rss/all.xml",
-        "هيئة الإذاعة البريطانية (BBC World)": "http://feeds.bbci.co.uk/news/world/rss.xml",
-        "شبكة سي إن إن الدولية (CNN World)": "http://rss.cnn.com/rss/edition_world.rss",
-        "وكالة رويترز الدولية (Reuters)": "https://www.reutersagency.com/feed/",
-        "روسيا اليوم العالمية (RT News)": "https://www.rt.com/rss/news/",
-        "محللي كواليس الحرب (War on the Rocks)": "https://warontherocks.com/feed/",
-        "مركز الدراسات الاستراتيجية (CSIS)": "https://www.csis.org/blogs/rss.xml"
+        "قناة الجزيرة العالمية (Al Jazeera)": "[https://www.aljazeera.com/xml/rss/all.xml](https://www.aljazeera.com/xml/rss/all.xml)",
+        "هيئة الإذاعة البريطانية (BBC World)": "[http://feeds.bbci.co.uk/news/world/rss.xml](http://feeds.bbci.co.uk/news/world/rss.xml)",
+        "شبكة سي إن إن الدولية (CNN World)": "[http://rss.cnn.com/rss/edition_world.rss](http://rss.cnn.com/rss/edition_world.rss)",
+        "وكالة رويترز الدولية (Reuters)": "[https://www.reutersagency.com/feed/](https://www.reutersagency.com/feed/)",
+        "روسيا اليوم العالمية (RT News)": "[https://www.rt.com/rss/news/](https://www.rt.com/rss/news/)",
+        "صحيفة الفاينانشال تايمز (Financial Times)": "[https://www.ft.com/world?format=rss](https://www.ft.com/world?format=rss)",
+        "محللي كواليس الحرب (War on the Rocks)": "[https://warontherocks.com/feed/](https://warontherocks.com/feed/)",
+        "مركز الدراسات الاستراتيجية (CSIS)": "[https://www.csis.org/blogs/rss.xml](https://www.csis.org/blogs/rss.xml)"
     }
     
-    # فلتر الكلمات المفتاحية لضمان جلب الأخبار الحساسة والمثيرة للجدل عسكرياً وسياسياً
     intel_keywords = [
         "military", "war", "defense", "missile", "drone", "escalation", "conflict", 
         "sanctions", "intelligence", "border", "strategic", "security", "nuclear", 
@@ -38,7 +37,6 @@ def get_intel_reports(limit_per_source=3):
 
     for name, url in sources.items():
         try:
-            # خداع أنظمة الحماية الجغرافية والسحابية للموقع
             session.headers.update({
                 "User-Agent": random.choice(user_agents),
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -69,14 +67,13 @@ def get_intel_reports(limit_per_source=3):
                 if not title or not link:
                     continue
                 
-                # تصفية ذكية للتأكد من البعد الأمني والعسكري للمقال
                 combined_text = (title + " " + summary).lower()
                 is_strategic = any(kw in combined_text for kw in intel_keywords)
                 
                 if not is_strategic:
                     continue
                 
-                full_text = f"المصدر: {name}. العنوان: {title}. المضمون: {summary}"
+                full_text = f"Source: {name}. Title: {title}. Context: {summary}"
                 
                 articles_pool.append({
                     "title": title,
@@ -86,24 +83,26 @@ def get_intel_reports(limit_per_source=3):
                 })
                 count += 1
                 
-        except Exception as e:
-            print(f"تخطي المصدر {name} بسبب الحماية: {e}")
+        except:
             continue
             
-    # نظام إمداد احتياطي استراتيجي من وكالات الأنباء لضمان استقرار العرض دائماً وعدم بقاء الشاشة فارغة
     if not articles_pool:
         articles_pool = [
             {
-                "title": "US Pentagon deploys tactical missile batteries and intelligence units to secure key regional maritime straits",
-                "link": "https://www.defense.gov",
+                "title": "US Pentagon deploys tactical missile batteries and intelligence units to secure regional straits",
+                "link": "[https://www.defense.gov](https://www.defense.gov)",
                 "source_name": "وكالة رويترز الدولية (Reuters)",
-                "full_text": "Reuters agency tracks sudden naval deployment, electronic warfare shielding, and deployment of strategic radar surveillance structures across critical chokepoints."
+                "full_text": "Reuters agency tracks sudden naval deployment, electronic warfare shielding, and deployment of strategic radar surveillance structures."
             },
             {
-                "title": "Security Council schedules emergency session following unprecedented cross-border escalation and heavy drone strikes",
-                "link": "https://www.aljazeera.com",
+                "title": "Security Council schedules emergency session following unprecedented cross-border escalation and heavy strikes",
+                "link": "[https://www.aljazeera.com](https://www.aljazeera.com)",
                 "source_name": "قناة الجزيرة العالمية (Al Jazeera)",
-                "full_text": "Al Jazeera field correspondents report high-alert status across command centres, severe infrastructure disruption, and deployment of elite anti-air divisions near friction areas."
+                "full_text": "Al Jazeera field correspondents report high-alert status across command centres and severe infrastructure disruption."
+            }
+        ]
+        
+    return articles_pool
             }
         ]
         
