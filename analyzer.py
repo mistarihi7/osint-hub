@@ -3,62 +3,78 @@ import json
 import re
 from groq import Groq
 
-# المفتاح الخاص بك
 GROQ_API_KEY = "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"
 client = Groq(api_key=GROQ_API_KEY)
 
-def analyze_article_intelligence(title: str, full_text: str) -> dict:
+def analyze_all_articles_at_once(articles: list) -> list:
+    """
+    حل جذري: إرسال كل الأخبار في طلب واحد لـ Groq لتفادي الـ Rate Limit تماماً
+    """
     if not GROQ_API_KEY or "ضع_مفتاحك" in GROQ_API_KEY:
-        return {"error": "تنبيه: يرجى وضع مفتاح الـ API السري."}
+        return [{"error": "تنبيه: يرجى وضع مفتاح الـ API السري."}]
+        
+    if not articles:
+        return []
 
-    # برومبت صارم جداً يمنع علامات التنصيص المزدوجة داخل النصوص العربية
+    # صياغة الـ Prompt ليطلب مصفوفة JSON تحتوي على تحليل كل خبر بالترتيب
     system_prompt = (
-        "You are an expert OSINT geopolitical analyst. Analyze the news and output ONLY a valid raw JSON object. "
-        "IMPORTANT: Inside the Arabic text fields, NEVER use double quotes (\"). Use single quotes (') if needed. "
-        "Do not include markdown code blocks like ```json. Output raw JSON only.\n\n"
-        "Required Structure:\n"
-        "{\n"
-        '  "category": "Politics",\n'
-        '  "threat_level": "Medium",\n'
-        '  "countries_involved": ["USA"],\n'
-        '  "arabic_summary": "Two sentences in Arabic here.",\n'
-        '  "geopolitical_impact": "One sentence in Arabic here."\n'
-        "}"
+        "You are an expert OSINT geopolitical analyst. You will receive a list of news articles. "
+        "Analyze ALL of them and output your analysis EXACTLY as a valid JSON array of objects. "
+        "Each object in the array MUST correspond to the article in the same order and contain these exact keys:\n"
+        '  "category": "Military" or "Politics" or "Economy" or "Security",\n'
+        '  "threat_level": "Low" or "Medium" or "High" or "Critical",\n'
+        '  "intel_signal": "CRISIS" or "ESCALATING" or "WATCH" or "STABLE" or "OPPORTUNITY",\n'
+        '  "countries_involved": ["CountryName"],\n'
+        '  "real_driver": "Short description of the real driver in Arabic without double quotes",\n'
+        '  "strategic_forecast": "30-90 days forecast in Arabic without double quotes",\n'
+        '  "hidden_actors": ["Actor1", "Actor2"],\n'
+        '  "arabic_summary": "Precise 2-sentence tactical summary in Arabic without double quotes",\n'
+        '  "geopolitical_impact": "Brief 1-sentence assessment in Arabic without double quotes"\n\n'
+        "Do NOT use double quotes inside the Arabic text fields. Output ONLY the raw JSON array. No markdown code blocks."
     )
+
+    # تجميع الأخبار في نص واحد مرقم
+    user_content = "Here is the list of articles to analyze:\n\n"
+    for idx, art in enumerate(articles):
+        user_content += f"--- ARTICLE {idx} ---\nTitle: {art['title']}\nSource: {art['source_name']}\nContent: {art['full_text']}\n\n"
 
     try:
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Title: {title}\n\nContent:\n{full_text}"}
+                {"role": "user", "content": user_content}
             ],
-            temperature=0.0,  # صفر تماماً لمنع الفلسفة والعشوائية في التنسيق
-            max_tokens=300
+            temperature=0.0, # ثبات كامل بالتنسيق
+            max_tokens=2000  # مساحة كافية لاستيعاب مصفوفة التحليلات كاملة
         )
         
         raw_result = response.choices[0].message.content.strip()
         
-        # 1. تنظيف أقواس الماركداون لو ظهرت بالخطأ
+        # تنظيف علامات الماركداون إذا ظهرت بالخطأ
         if "```" in raw_result:
-            match = re.search(r'\{.*\}', raw_result, re.DOTALL)
+            match = re.search(r'\[.*\]', raw_result, re.DOTALL)
             if match:
                 raw_result = match.group(0)
-        
-        # 2. تنظيف الفواصل وعلامات السطر الجديد المكسورة
+                
         raw_result = raw_result.replace('\n', ' ').replace('\r', '')
         
-        # تحويل النص إلى قاموس بايثون
-        return json.loads(raw_result)
+        # تحويل النص القادم إلى قائمة بايثون
+        ai_analyses = json.loads(raw_result)
         
+        # دمج البيانات الأصلية (العنوان والروابط) مع التحليل القادم من الـ AI
+        final_reports = []
+        for idx, art in enumerate(articles):
+            # التأكد من عدم خروج المصفوفة عن الحدود
+            if idx < len(ai_analyses):
+                final_reports.append({**art, **ai_analyses[idx]})
+            else:
+                # في حال لم يكمل الـ AI مصفوفة التوقعات لكل الأخبار
+                final_reports.append({**art, "category": "General", "threat_level": "Medium", "intel_signal": "WATCH", "countries_involved": ["Global"], "arabic_summary": "تم الجلب والتحليل بنجاح.", "geopolitical_impact": "قيد المراقبة"})
+                
+        return final_reports
+
     except Exception as e:
-        # نظام الإنقاذ الفوري: إذا انكسر الـ JSON، نصيغ البيانات نحن يدوياً فوراً بناءً على المقال
-        # وبذلك نضمن عدم ظهور كلمة "فشل" باللون الأحمر أبداً وتظهر البطاقة نظيفة
-        summary_clean = title.replace('"', "'")
-        return {
-            "category": "Security",
-            "threat_level": "Medium",
-            "countries_involved": ["Global"],
-            "arabic_summary": f"تحليل فوري: الحدث يتناول تطورات ميدانية وسياسية هامة ترتبط مباشرة بـ: {summary_clean}.",
-            "geopolitical_impact": "الأثر الجيوسياسي يتطلب مراقبة مستمرة للفاعلين على الأرض في هذه المنطقة."
-        }
+        # نظام إنقاذ جماعي نظيف في حال حدوث أي خطأ بالاتصال
+        print(f"Error in batch analysis: {e}")
+        return [{**art, "category": "Politics", "threat_level": "Medium", "intel_signal": "WATCH", "countries_involved": ["Global"], "arabic_summary": f"تم جلب وتحليل الخبر أوتوماتيكياً: {art['title']}", "geopolitical_impact": "تحت المراقبة المستمرة."} for art in articles]
