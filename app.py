@@ -1,6 +1,6 @@
 import streamlit as st
 from scraper import get_intel_reports
-from analyzer import analyze_article_intelligence
+from analyzer import analyze_all_articles_at_once
 import datetime
 import os
 import pandas as pd
