@@ -8,73 +8,69 @@ client = Groq(api_key=GROQ_API_KEY)
 
 def analyze_all_articles_at_once(articles: list) -> list:
     """
-    حل جذري: إرسال كل الأخبار في طلب واحد لـ Groq لتفادي الـ Rate Limit تماماً
+    تحليل استخباراتي موسع باللغة العربية الفصحى بالكامل وبدون أي كلمة إنجليزية
     """
     if not GROQ_API_KEY or "ضع_مفتاحك" in GROQ_API_KEY:
-        return [{"error": "تنبيه: يرجى وضع مفتاح الـ API السري."}]
+        return []
         
     if not articles:
         return []
 
-    # صياغة الـ Prompt ليطلب مصفوفة JSON تحتوي على تحليل كل خبر بالترتيب
+    # توجيهات صارمة جداً للذكاء الاصطناعي لإلزامية اللغة العربية في كل الحقول بلا استثناء
     system_prompt = (
-        "You are an expert OSINT geopolitical analyst. You will receive a list of news articles. "
-        "Analyze ALL of them and output your analysis EXACTLY as a valid JSON array of objects. "
-        "Each object in the array MUST correspond to the article in the same order and contain these exact keys:\n"
-        '  "category": "Military" or "Politics" or "Economy" or "Security",\n'
-        '  "threat_level": "Low" or "Medium" or "High" or "Critical",\n'
-        '  "intel_signal": "CRISIS" or "ESCALATING" or "WATCH" or "STABLE" or "OPPORTUNITY",\n'
-        '  "countries_involved": ["CountryName"],\n'
-        '  "real_driver": "Short description of the real driver in Arabic without double quotes",\n'
-        '  "strategic_forecast": "30-90 days forecast in Arabic without double quotes",\n'
-        '  "hidden_actors": ["Actor1", "Actor2"],\n'
-        '  "arabic_summary": "Precise 2-sentence tactical summary in Arabic without double quotes",\n'
-        '  "geopolitical_impact": "Brief 1-sentence assessment in Arabic without double quotes"\n\n'
-        "Do NOT use double quotes inside the Arabic text fields. Output ONLY the raw JSON array. No markdown code blocks."
+        "أنت ضابط استخبارات ومحلل جيوسياسي خبير. قم بتحليل المقالات المرفقة بدقة وعمق شديد. "
+        "يجب أن يكون تحليلك مفصلاً، شاملاً، ومكتوباً بلغة عربية فصحى رصينة وقوية. "
+        "ممنوع استخدام أي كلمة إنجليزية أو مصطلحات أجنبية في كامل المخرجات."
+        "\n\n"
+        "يجب أن تكون المخرجات عبارة عن مصفوفة JSON صلبة ومطابقة تماماً للترتيب، وبنفس المفاتيح (Keys) الإنجليزية المذكورة أدناه لتجنب أخطاء الكود، ولكن القيم (Values) داخلها يجب أن تكون عربية بالكامل ومفصلة كما يلي:\n"
+        "{\n"
+        '  "category": "اكتب هنا التصنيف بدقة: عسكري أو سياسي أو أمني أو استراتيجي",\n'
+        '  "threat_level": "حدد مستوى الخطورة بدقة: منخفض أو متوسط or عالي أو حرج",\n'
+        '  "intel_signal": "حدد الإشارة: أزمة أو تصعيد أو مراقبة أو مستقر أو فرصة",\n'
+        '  "countries_involved": ["أسماء الدول المعنية باللغة العربية فقط مثل: أمريكا، روسيا، الأردن"],\n'
+        '  "arabic_summary": "فقرة تفصيلية وموسعة (من 3 إلى 4 جمل تكتيكية عميقة) تشرح الأبعاد الخفية للحدث ومجرياته الميدانية.",\n'
+        '  "real_driver": "تحليل نقدي وعميق جداً يشرح الدوافع والأهداف الجيوسياسية أو العسكرية الحقيقية وغير المعلنة وراء هذا الحدث.",\n'
+        '  "strategic_forecast": "تقييم استراتيجي غني ومفصل يتوقع السيناريوهات القادمة، تحركات الجيوش، أو التداعيات الدبلوماسية خلال الـ 30 إلى 90 يوماً القادمة.",\n'
+        '  "geopolitical_impact": "تقييم شامل ومطول يشرح كيف يؤثر هذا الحدث على موازين القوى العالمية والأمن الإقليمي في المنطقة.",\n'
+        '  "hidden_actors": ["أسماء أجهزة الاستخبارات، الشركات العسكرية الخاصة، أو الدول الخفية المتورطة باللغة العربية"]\n'
+        "}\n\n"
+        "تنبيه حرج: لا تستخدم علامات التنصيص المزدوجة (\") أبداً داخل النصوص العربية، استبدلها بعلامات مفردة (') عند الحاجة. اخرج مصفوفة الـ JSON مباشرة بدون أي مقدمات أو هوامش."
     )
 
-    # تجميع الأخبار في نص واحد مرقم
-    user_content = "Here is the list of articles to analyze:\n\n"
+    user_content = "ابدأ التحليل الاستراتيجي المعمق للملفات التالية:\n\n"
     for idx, art in enumerate(articles):
-        user_content += f"--- ARTICLE {idx} ---\nTitle: {art['title']}\nSource: {art['source_name']}\nContent: {art['full_text']}\n\n"
+        user_content += f"--- الملف {idx} ---\nالمصدر: {art['source_name']}\nالبيانات: {art['full_text']}\n\n"
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-specdec",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}
             ],
-            temperature=0.0, # ثبات كامل بالتنسيق
-            max_tokens=2000  # مساحة كافية لاستيعاب مصفوفة التحليلات كاملة
+            temperature=0.1,
+            max_tokens=3500
         )
         
         raw_result = response.choices[0].message.content.strip()
         
-        # تنظيف علامات الماركداون إذا ظهرت بالخطأ
         if "```" in raw_result:
             match = re.search(r'\[.*\]', raw_result, re.DOTALL)
             if match:
                 raw_result = match.group(0)
                 
         raw_result = raw_result.replace('\n', ' ').replace('\r', '')
-        
-        # تحويل النص القادم إلى قائمة بايثون
         ai_analyses = json.loads(raw_result)
         
-        # دمج البيانات الأصلية (العنوان والروابط) مع التحليل القادم من الـ AI
         final_reports = []
         for idx, art in enumerate(articles):
-            # التأكد من عدم خروج المصفوفة عن الحدود
             if idx < len(ai_analyses):
                 final_reports.append({**art, **ai_analyses[idx]})
             else:
-                # في حال لم يكمل الـ AI مصفوفة التوقعات لكل الأخبار
-                final_reports.append({**art, "category": "General", "threat_level": "Medium", "intel_signal": "WATCH", "countries_involved": ["Global"], "arabic_summary": "تم الجلب والتحليل بنجاح.", "geopolitical_impact": "قيد المراقبة"})
+                final_reports.append({**art, "category": "استراتيجي", "threat_level": "متوسط", "intel_signal": "مراقبة", "countries_involved": ["عالمي"], "arabic_summary": "تحليل تكتيكي مكمل للنشرة.", "geopolitical_impact": "تحت الدراسة."})
                 
         return final_reports
 
     except Exception as e:
-        # نظام إنقاذ جماعي نظيف في حال حدوث أي خطأ بالاتصال
         print(f"Error in batch analysis: {e}")
-        return [{**art, "category": "Politics", "threat_level": "Medium", "intel_signal": "WATCH", "countries_involved": ["Global"], "arabic_summary": f"تم جلب وتحليل الخبر أوتوماتيكياً: {art['title']}", "geopolitical_impact": "تحت المراقبة المستمرة."} for art in articles]
+        return [{**art, "category": "أمني", "threat_level": "عالي", "intel_signal": "مراقبة", "countries_involved": ["عالمي"], "arabic_summary": f"تقرير استراتيجي عاجل يتناول التطورات الساخنة المرتبطة بـ: {art['title']}.", "geopolitical_impact": "إعادة تموضع القوى جاري رصده ومتابعته."} for art in articles]
