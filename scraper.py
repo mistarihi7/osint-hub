@@ -10,14 +10,14 @@ def get_intel_reports(limit_per_source=3):
     ومراكز القرار العسكري، مع نظام حماية وتخطي للحجب السحابي.
     """
     sources = {
-        "قناة الجزيرة العالمية (Al Jazeera)": "[https://www.aljazeera.com/xml/rss/all.xml](https://www.aljazeera.com/xml/rss/all.xml)",
-        "هيئة الإذاعة البريطانية (BBC World)": "[http://feeds.bbci.co.uk/news/world/rss.xml](http://feeds.bbci.co.uk/news/world/rss.xml)",
-        "شبكة سي إن إن الدولية (CNN World)": "[http://rss.cnn.com/rss/edition_world.rss](http://rss.cnn.com/rss/edition_world.rss)",
-        "وكالة رويترز الدولية (Reuters)": "[https://www.reutersagency.com/feed/](https://www.reutersagency.com/feed/)",
-        "روسيا اليوم العالمية (RT News)": "[https://www.rt.com/rss/news/](https://www.rt.com/rss/news/)",
-        "صحيفة الفاينانشال تايمز (Financial Times)": "[https://www.ft.com/world?format=rss](https://www.ft.com/world?format=rss)",
-        "محللي كواليس الحرب (War on the Rocks)": "[https://warontherocks.com/feed/](https://warontherocks.com/feed/)",
-        "مركز الدراسات الاستراتيجية (CSIS)": "[https://www.csis.org/blogs/rss.xml](https://www.csis.org/blogs/rss.xml)"
+        "قناة الجزيرة العالمية (Al Jazeera)": "https://www.aljazeera.com/xml/rss/all.xml",
+        "هيئة الإذاعة البريطانية (BBC World)": "http://feeds.bbci.co.uk/news/world/rss.xml",
+        "شبكة سي إن إن الدولية (CNN World)": "http://rss.cnn.com/rss/edition_world.rss",
+        "وكالة رويترز الدولية (Reuters)": "https://www.reutersagency.com/feed/",
+        "روسيا اليوم العالمية (RT News)": "https://www.rt.com/rss/news/",
+        "صحيفة الفاينانشال تايمز (Financial Times)": "https://www.ft.com/world?format=rss",
+        "محللي كواليس الحرب (War on the Rocks)": "https://warontherocks.com/feed/",
+        "مركز الدراسات الاستراتيجية (CSIS)": "https://www.csis.org/blogs/rss.xml"
     }
     
     intel_keywords = [
@@ -90,19 +90,15 @@ def get_intel_reports(limit_per_source=3):
         articles_pool = [
             {
                 "title": "US Pentagon deploys tactical missile batteries and intelligence units to secure regional straits",
-                "link": "[https://www.defense.gov](https://www.defense.gov)",
+                "link": "https://www.defense.gov",
                 "source_name": "وكالة رويترز الدولية (Reuters)",
                 "full_text": "Reuters agency tracks sudden naval deployment, electronic warfare shielding, and deployment of strategic radar surveillance structures."
             },
             {
                 "title": "Security Council schedules emergency session following unprecedented cross-border escalation and heavy strikes",
-                "link": "[https://www.aljazeera.com](https://www.aljazeera.com)",
+                "link": "https://www.aljazeera.com",
                 "source_name": "قناة الجزيرة العالمية (Al Jazeera)",
                 "full_text": "Al Jazeera field correspondents report high-alert status across command centres and severe infrastructure disruption."
-            }
-        ]
-        
-    return articles_pool
             }
         ]
         
