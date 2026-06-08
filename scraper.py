@@ -1,66 +1,114 @@
 import feedparser
 import requests
-import re
-import html
-import random
+from newspaper import Article
+import datetime
+from typing import List, Dict, Any
 
-def get_intel_reports(limit_per_source=4):
-    """
-    استخدام Google News RSS كمجمع أساسي.
-    هذه الطريقة تخترق الحظر السحابي 100% وتجلب أحدث أخبار (CNN, Reuters, BBC, الجزيرة) كل دقيقة.
-    """
-    sources = {
-        "الرصد العالمي (Global)": "https://news.google.com/rss/search?q=geopolitics+OR+military+OR+pentagon+when:1d&hl=en-US&gl=US&ceid=US:en",
-        "رصد الشرق الأوسط (ME)": "https://news.google.com/rss/search?q=تصعيد+OR+حرب+OR+عسكري+OR+استخبارات+when:1d&hl=ar&gl=EG&ceid=EG:ar",
-        "سكاي نيوز عربية (Sky News)": "https://www.skynewsarabia.com/rss",
-        "روسيا اليوم (RT)": "https://arabic.rt.com/rss/news/"
-    }
-    
-    articles_pool = []
-    session = requests.Session()
-    
-    for name, url in sources.items():
-        try:
-            session.headers.update({
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+# ══════════════════════════════════════════════════════════════════════════════
+# مصادر موثوقة ومفتوحة — تم اختيارها لأنها لا تحجب الـ scraping
+# ══════════════════════════════════════════════════════════════════════════════
+DEFAULT_FEEDS = {
+    "Reuters":              "https://feeds.reuters.com/reuters/worldNews",
+    "AP News":              "https://rsshub.app/apnews/topics/world-news",
+    "BBC World":            "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "Al Jazeera English":   "https://www.aljazeera.com/xml/rss/all.xml",
+    "DW (Deutsche Welle)":  "https://rss.dw.com/rdf/rss-en-all",
+    "France 24":            "https://www.france24.com/en/rss",
+    "NPR World":            "https://feeds.npr.org/1004/rss.xml",
+    "The Guardian World":   "https://www.theguardian.com/world/rss",
+    "Foreign Policy":       "https://foreignpolicy.com/feed/",
+    "Geopolitical Monitor": "https://www.geopoliticalmonitor.com/feed/",
+    "Defense News":         "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+    "Middle East Eye":      "https://www.middleeasteye.net/rss",
+    "The Intercept":        "https://theintercept.com/feed/?rss",
+    "Asia Times":           "https://asiatimes.com/feed/",
+    "Euronews":             "https://feeds.feedburner.com/euronews/en/news/",
+}
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+}
+
+
+def fetch_rss_articles(feed_url: str, source_name: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """جلب المقالات من RSS مع استخراج الوصف كنص احتياطي."""
+    articles = []
+    try:
+        feed = feedparser.parse(feed_url, request_headers=HEADERS)
+        for entry in feed.entries[:limit]:
+            # نستخرج الوصف من RSS مباشرة كنص احتياطي
+            rss_summary = ""
+            for field in ["summary", "description", "content"]:
+                val = entry.get(field, "")
+                if isinstance(val, list) and val:
+                    val = val[0].get("value", "")
+                if val and len(str(val)) > 50:
+                    rss_summary = str(val)
+                    break
+
+            articles.append({
+                "title":       entry.get("title", "No Title"),
+                "link":        entry.get("link", ""),
+                "published":   entry.get("published", str(datetime.datetime.now())),
+                "source_name": source_name,
+                "rss_summary": rss_summary,
             })
-            
-            response = session.get(url, timeout=10)
-            if response.status_code != 200: continue
-                
-            feed = feedparser.parse(response.text)
-            count = 0
-            
-            for entry in feed.entries:
-                if count >= limit_per_source: break
-                    
-                title = entry.get("title", "").strip()
-                link = entry.get("link", "").strip()
-                summary = entry.get("summary", entry.get("description", ""))
-                
-                if "<" in summary:
-                    summary = re.sub(r'<[^>]+>', '', summary)
-                summary = html.unescape(summary).strip()
-                
-                if not title: continue
-                
-                # تنظيف العنوان من اسم المصدر الذي يضيفه جوجل أوتوماتيكياً
-                clean_title = title.split(" - ")[0]
-                
-                full_text = f"العنوان: {clean_title}. التفاصيل: {summary}"
-                
-                articles_pool.append({
-                    "title": clean_title,
-                    "link": link,
-                    "source_name": name,
-                    "full_text": full_text[:1500]
-                })
-                count += 1
-        except Exception as e:
-            continue
-            
-    return articles_pool
-            }
-        ]
-        
-    return articles_pool
+    except Exception as e:
+        print(f"[RSS Error] {source_name}: {e}")
+    return articles
+
+
+def scrape_full_article(url: str) -> str:
+    """
+    محاولة كشط النص الكامل — مع fallback آمن.
+    يرجع النص أو سلسلة فارغة إذا فشل.
+    """
+    if not url:
+        return ""
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        text = article.text.strip()
+        # إذا النص أقل من 100 حرف = المقال محجوب أو فارغ
+        return text if len(text) > 100 else ""
+    except Exception:
+        return ""
+
+
+def get_intel_reports(limit_per_source: int = 5) -> List[Dict[str, Any]]:
+    """
+    المحرك الرئيسي:
+    1. يجلب من RSS
+    2. يحاول كشط النص الكامل
+    3. إذا فشل الكشط يستخدم وصف RSS
+    4. إذا فشل كل شيء يستخدم العنوان فقط
+    """
+    all_reports = []
+
+    for source_name, feed_url in DEFAULT_FEEDS.items():
+        print(f"[Fetching] {source_name}...")
+        articles = fetch_rss_articles(feed_url, source_name, limit=limit_per_source)
+
+        for art in articles:
+            full_text = scrape_full_article(art["link"])
+
+            if len(full_text) > 100:
+                text_source = "full_article"
+            elif len(art.get("rss_summary", "")) > 50:
+                full_text   = art["rss_summary"]
+                text_source = "rss_summary"
+            else:
+                full_text   = art["title"]
+                text_source = "title_only"
+
+            art["full_text"]   = full_text
+            art["text_source"] = text_source
+            all_reports.append(art)
+
+    print(f"[Done] إجمالي: {len(all_reports)} خبر")
+    return all_reports
