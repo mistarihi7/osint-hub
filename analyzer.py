@@ -1,78 +1,164 @@
 import os
 import json
 import re
+import time
+import requests
 from groq import Groq
 
-GROQ_API_KEY = "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"
+# ── API Keys ──────────────────────────────────────────────────────────────────
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# ── Telegram Config ───────────────────────────────────────────────────────────
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID   = "YOUR_TELEGRAM_CHAT_ID"
+
 client = Groq(api_key=GROQ_API_KEY)
 
-def analyze_batch(chunk_articles: list) -> list:
-    system_prompt = (
-        "أنت محلل استخبارات عسكري. مهمتك قراءة الأخبار اليومية الحقيقية وصياغتها كتقارير أمنية تكتيكية باللغة العربية الفصحى.\n\n"
-        "التعليمات الصارمة (اقرأها بعناية والتزم بها):\n"
-        "1. ممنوع التكرار: إياك واستخدام نفس الديباجة أو الجمل المحفوظة في كل خبر. يجب أن يكون التحليل فريداً ومبنياً على ما ورد في النص فقط.\n"
-        "2. الدقة: استخرج التفاصيل الحقيقية (أسماء دول، أسلحة، مواقع، شخصيات) من النص الأصلي. لا تخترع تحركات غير موجودة.\n"
-        "3. الصياغة: لغة عربية فصحى قوية، بدون أي كلمات إنجليزية.\n\n"
-        "يجب إخراج الناتج كمصفوفة JSON مطابقة للمفاتيح التالية:\n"
-        "[\n  {\n"
-        '    "arabic_title": "ترجمة أو صياغة العنوان بشكل دقيق وواقعي"،\n'
-        '    "category": "عسكري أو سياسي أو أمني أو اقتصادي"،\n'
-        '    "threat_level": "حرج أو عالي أو متوسط أو منخفض",\n'
-        '    "intel_signal": "أزمة أو تصعيد أو مراقبة أو مستقر أو فرصة",\n'
-        '    "countries_involved": ["الدول المذكورة فعلياً في الخبر"],\n'
-        '    "arabic_summary": "ملخص تكتيكي حقيقي ومفصل لما حدث في الخبر المرفق. اذكر الأسماء والأماكن، وتجنب العبارات العامة.",\n'
-        '    "real_driver": "تحليل واقعي للدافع الفعلي خلف هذا الحدث تحديداً.",\n'
-        '    "strategic_forecast": "توقع استراتيجي واقعي مبني على معطيات هذا الخبر خلال الأسابيع القادمة.",\n'
-        '    "geopolitical_impact": "الأثر الإقليمي أو الدولي الفعلي لهذا الحدث.",\n'
-        '    "hidden_actors": ["جهات مستفيدة أو متورطة"]\n'
-        "  }\n]\n"
-    )
+# ══════════════════════════════════════════════════════════════════════════════
+# المرحلة 1 — فلترة سريعة (نموذج صغير، العنوان فقط)
+# ══════════════════════════════════════════════════════════════════════════════
+TRIAGE_PROMPT = """You are a geopolitical news triage agent.
+Score this headline's geopolitical importance from 1 to 10.
+- 8-10: War, coup, sanctions, nuclear, terror, major elections, military moves, major crises
+- 5-7:  Diplomacy, trade disputes, protests, political tensions, energy deals
+- 1-4:  Sports, entertainment, weather, minor local news, celebrity
 
-    user_content = "حلل هذه الأخبار الحقيقية فوراً، واجعل كل تحليل فريداً ومختلفاً عن الآخر:\n\n"
-    for idx, art in enumerate(chunk_articles):
-        user_content += f"--- الخبر {idx} ---\nالمصدر: {art['source_name']}\nالمضمون: {art['full_text']}\n\n"
+Output ONLY raw JSON. No extra text:
+{"score": 7}"""
+
+
+def triage_article(title: str) -> int:
+    """المرحلة 1: يقيّم أهمية العنوان ويرجع نقطة 1-10."""
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": TRIAGE_PROMPT},
+                {"role": "user",   "content": f"Headline: {title}"}
+            ],
+            temperature=0.1,
+            max_tokens=20
+        )
+        raw = response.choices[0].message.content.strip()
+        raw = re.search(r'\{.*\}', raw, re.DOTALL)
+        raw = raw.group(0) if raw else '{"score":5}'
+        return int(json.loads(raw).get("score", 5))
+    except Exception:
+        return 5
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# المرحلة 2 — تحليل عميق (نموذج كبير، النص الكامل)
+# ══════════════════════════════════════════════════════════════════════════════
+DEEP_PROMPT = """You are a senior geopolitical intelligence analyst with 20 years of experience. You have deep knowledge of realpolitik, intelligence tradecraft, military strategy, economic warfare, proxy conflicts, and historical patterns.
+
+Analyze the article with clinical precision. Go BEYOND the surface narrative. Identify who REALLY benefits, what is NOT being said, and what comes next.
+
+Output ONLY raw valid JSON. No markdown, no preamble:
+
+{
+  "category": "Military / Diplomacy / Intelligence / Economic Warfare / Energy & Resources / Proxy Conflict / Cyber & Tech War / Humanitarian Crisis / Elections & Democracy",
+  "threat_level": "Low / Medium / High / Critical",
+  "countries_involved": ["list of countries"],
+  "hidden_actors": ["intelligence agencies, corporations, lobbies, militias"],
+  "arabic_summary": "ملخص تكتيكي دقيق في جملتين بدون علامات اقتباس مزدوجة",
+  "real_driver": "الدافع الحقيقي وراء الحدث - جملة واحدة بالعربية",
+  "geopolitical_impact": "الأثر الجيوسياسي المستقبلي - جملة بالعربية",
+  "strategic_forecast": "توقع استراتيجي 30-90 يوماً - جملة بالعربية",
+  "intel_signal": "WATCH / ESCALATING / STABLE / CRISIS / OPPORTUNITY"
+}"""
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Telegram Alert
+# ══════════════════════════════════════════════════════════════════════════════
+def send_telegram_alert(title: str, summary: str, threat_level: str,
+                        intel_signal: str, source_name: str) -> None:
+    if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN":
+        return
+    emoji_map  = {"Critical": "🚨🚨", "High": "⚠️", "Medium": "🔵", "Low": "🟢"}
+    signal_map = {"CRISIS": "🔴", "ESCALATING": "🟠", "WATCH": "🔵", "STABLE": "🟢", "OPPORTUNITY": "🟣"}
+    message = (
+        f"{emoji_map.get(threat_level,'⚠️')} *OSINT ALERT — {threat_level.upper()}*\n"
+        f"{'─'*30}\n"
+        f"📰 *{title}*\n\n"
+        f"📡 المصدر: `{source_name}`\n"
+        f"⚠️ الخطورة: `{threat_level}` | {signal_map.get(intel_signal,'🔵')} الإشارة: `{intel_signal}`\n\n"
+        f"📝 *الملخص:*\n{summary}"
+    )
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"},
+            timeout=5
+        )
+    except Exception:
+        pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# الدالة الرئيسية — ثنائية المرحلة
+# ══════════════════════════════════════════════════════════════════════════════
+def analyze_article_intelligence(title: str, full_text: str,
+                                  source_name: str = "") -> dict:
+    # ── المرحلة 1: الفلترة السريعة ───────────────────────────────────────────
+    score = triage_article(title)
+    time.sleep(0.4)
+
+    if score < 6:
+        return {
+            "category": "—", "threat_level": "Low",
+            "countries_involved": [], "hidden_actors": [],
+            "arabic_summary": f"تم تصفية هذا الخبر — أهمية جيوسياسية منخفضة ({score}/10)",
+            "real_driver": "—", "geopolitical_impact": "—",
+            "strategic_forecast": "—", "intel_signal": "STABLE",
+            "triage_score": score, "filtered": True
+        }
+
+    # ── المرحلة 2: التحليل العميق ────────────────────────────────────────────
+    truncated = full_text[:3000] if len(full_text) > 3000 else full_text
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.3-70b-specdec",
+            model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
+                {"role": "system", "content": DEEP_PROMPT},
+                {"role": "user",   "content": f"Title: {title}\n\nText:\n{truncated}"}
             ],
-            temperature=0.3, # تم الرفع قليلاً ليصبح التحليل متجدداً وغير مكرر
-            max_tokens=3200
+            temperature=0.15,
+            max_tokens=700
         )
-        
-        raw_result = response.choices[0].message.content.strip()
-        if "```" in raw_result:
-            match = re.search(r'\[.*\]', raw_result, re.DOTALL)
-            if match: raw_result = match.group(0)
-                
-        raw_result = raw_result.replace('\n', ' ').replace('\r', '')
-        return json.loads(raw_result)
-    except Exception as e:
-        # نظام أمان يقرأ من العنوان الفعلي بدلاً من تثبيت نفس الجمل
-        return [{
-            "arabic_title": f"متابعة: {art['title'][:50]}...",
-            "category": "أمني", "threat_level": "متوسط", "intel_signal": "مراقبة",
-            "countries_involved": ["غير محدد"],
-            "arabic_summary": f"الخبر يتناول: {art['title']}. يجري متابعة التفاصيل الميدانية الخاصة بهذا التطور.",
-            "real_driver": "دوافع سياسية أو أمنية قيد التحليل حالياً.",
-            "strategic_forecast": "قيد المتابعة والتحديث للأسابيع القادمة.",
-            "geopolitical_impact": "تأثير محتمل على أمن المنطقة المستهدفة.",
-            "hidden_actors": ["غير معلن"]
-        } for art in chunk_articles]
+        raw = response.choices[0].message.content.strip()
+        if "```" in raw:
+            m = re.search(r'\{.*\}', raw, re.DOTALL)
+            raw = m.group(0) if m else raw
 
-def analyze_all_articles_at_once(articles: list) -> list:
-    if not articles: return []
-    final_reports = []
-    chunk_size = 2
-    for i in range(0, len(articles), chunk_size):
-        chunk = articles[i:i+chunk_size]
-        analysis_results = analyze_batch(chunk)
-        for idx, art in enumerate(chunk):
-            if isinstance(analysis_results, list) and idx < len(analysis_results):
-                final_reports.append({**art, **analysis_results[idx]})
-            else:
-                final_reports.append({**art, "arabic_title": "خطأ معالجة", "category": "أمني", "threat_level": "متوسط", "intel_signal": "مراقبة", "countries_involved": [], "arabic_summary": "تعذر المعالجة.", "real_driver": "-", "strategic_forecast": "-", "geopolitical_impact": "-", "hidden_actors": []})
-    return final_reports
+        result = json.loads(raw)
+        result["triage_score"] = score
+        result["filtered"]     = False
+
+        threat  = result.get("threat_level", "Low")
+        signal  = result.get("intel_signal", "WATCH")
+        if threat in ("Critical", "High") or signal == "CRISIS":
+            send_telegram_alert(title, result.get("arabic_summary",""), threat, signal, source_name)
+
+        return result
+
+    except json.JSONDecodeError:
+        return {
+            "category": "Diplomacy", "threat_level": "Medium",
+            "countries_involved": [], "hidden_actors": [],
+            "arabic_summary": f"تعذّر استخراج تحليل منظّم للخبر: {title[:80]}",
+            "real_driver": "يجري التحليل...", "geopolitical_impact": "يجري التقييم...",
+            "strategic_forecast": "—", "intel_signal": "WATCH",
+            "triage_score": score, "filtered": False
+        }
+    except Exception as e:
+        return {
+            "category": "Error", "threat_level": "Low",
+            "countries_involved": [], "hidden_actors": [],
+            "arabic_summary": f"خطأ في التحليل: {str(e)[:100]}",
+            "real_driver": "—", "geopolitical_impact": "—",
+            "strategic_forecast": "—", "intel_signal": "STABLE",
+            "triage_score": score, "filtered": False
+        }
