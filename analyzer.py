@@ -17,11 +17,15 @@ client = Groq(api_key=GROQ_API_KEY)
 # ══════════════════════════════════════════════════════════════════════════════
 # المرحلة 1 — فلترة سريعة (نموذج صغير، العنوان فقط)
 # ══════════════════════════════════════════════════════════════════════════════
-TRIAGE_PROMPT = """You are a geopolitical news triage agent.
-Score this headline's geopolitical importance from 1 to 10.
-- 8-10: War, coup, sanctions, nuclear, terror, major elections, military moves, major crises
-- 5-7:  Diplomacy, trade disputes, protests, political tensions, energy deals
-- 1-4:  Sports, entertainment, weather, minor local news, celebrity
+TRIAGE_PROMPT = """You are a geopolitical news triage agent for a global intelligence platform.
+Score this headline's relevance from 1 to 10. Be GENEROUS — when in doubt, score higher.
+
+- 6-10: Anything related to: politics, diplomacy, military, economy, trade, energy, elections,
+        international relations, sanctions, conflicts, terrorism, climate policy, tech policy,
+        government decisions, central banks, treaties, protests, security, intelligence
+- 1-5:  ONLY pure entertainment, celebrity gossip, sports scores, cooking, lifestyle
+
+Most news from Reuters, BBC, Al Jazeera, Guardian = score 6 or above by default.
 
 Output ONLY raw JSON. No extra text:
 {"score": 7}"""
@@ -105,7 +109,7 @@ def analyze_article_intelligence(title: str, full_text: str,
     score = triage_article(title)
     time.sleep(0.4)
 
-    if score < 6:
+    if score < 4:
         return {
             "category": "—", "threat_level": "Low",
             "countries_involved": [], "hidden_actors": [],
